@@ -1,0 +1,180 @@
+<!--
+ * @Author: suo
+ * @Date: 2020-07-15 10:40:48
+ * @LastEditTime: 2020-07-16 19:01:53
+ * @LastEditors: suo
+ * @Description: 
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>首页</title>
+</head>
+
+<body>
+	<button onclick="chooseImage()">chooseImage</button>
+	<button id="vioce" onclick="toogleRecord()">Record</button>
+	<button onclick="getLocation()">getLocation</button>
+	<button onclick="closeWindow()">closeWindow</button>
+	<button onclick="hideMenu()">hideMenu</button>
+	<button onclick="showMenu()">showMenu</button>
+	<button onclick="scanQRCode()">scanQRCode</button>
+	<div id="log" style="word-break: break-all;">HOME_PAGE</div>
+	<script src="//res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
+	<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+	<script>
+		let jsApiList = ['updateAppMessageShareData', 'updateTimelineShareData', 'onMenuShareTimeline', 'onMenuShareAppMessage', 'onMenuShareQQ', 'onMenuShareWeibo', 'onMenuShareQZone', 'startRecord', 'stopRecord', 'onVoiceRecordEnd', 'playVoice', 'pauseVoice', 'stopVoice', 'onVoicePlayEnd', 'uploadVoice', 'downloadVoice', 'chooseImage', 'previewImage', 'uploadImage', 'downloadImage', 'translateVoice', 'getNetworkType', 'openLocation', 'getLocation', 'hideOptionMenu', 'showOptionMenu', 'hideMenuItems', 'showMenuItems', 'hideAllNonBaseMenuItem', 'showAllNonBaseMenuItem', 'closeWindow', 'scanQRCode', 'chooseWXPay', 'openProductSpecificView', 'addCard', 'chooseCard', 'openCard']
+		function getSignature() {
+			return axios({
+				method: 'post',
+				url: 'http://suohb.free.idcfengye.com/jsapi',
+				data: {
+					url: window.location.href.split('#')[0]
+				}
+			}).then(res => {
+				document.querySelector("#log").innerHTML = JSON.stringify(res.data)
+				return res.data
+			})
+		}
+
+		function wxConfig(data) {
+			return new Promise((resolve, reject) => {
+				wx.config({
+					...data,
+					jsApiList
+				})
+				wx.error(err => {
+					reject(err)
+				})
+				wx.ready(() => {
+					resolve()
+				})
+			})
+		}
+
+		//需在用户可能点击分享按钮前就先调用
+		function share() {
+			let shareData = {
+				title: '分享的标题',
+				desc: '分享的描述呀！！！',
+				link: window.location.href,
+				imgUrl: `${window.location.origin}/images/share.png`
+			}
+			wx.updateAppMessageShareData({
+				...shareData,
+				success: function () { }
+			})
+			wx.ready(function () {
+				wx.updateTimelineShareData({
+					...shareData,
+					success: function () { }
+				})
+			});
+		}
+
+		getSignature().then(res => {
+			return wxConfig(res)
+		}).then(() => {
+			wx.checkJsApi({
+				jsApiList, // 需要检测的JS接口列表，所有JS接口列表见附录2,
+				success: function (res) {
+					document.querySelector("#log").innerHTML = JSON.stringify(res)
+				}
+			});
+
+			share()
+		})
+
+		function chooseImage() {
+			wx.chooseImage({
+				count: 1, // 默认9
+				sizeType: ['original', 'compressed'], // 可以指定是原图还是压缩图，默认二者都有
+				sourceType: ['album', 'camera'], // 可以指定来源是相册还是相机，默认二者都有
+				success: function (res) {
+					var localIds = res.localIds; // 返回选定照片的本地ID列表，localId可以作为img标签的src属性显示图片
+					document.querySelector("#log").innerHTML = `<img src='${localIds[0]}' style='width:90%;height:auto;'/>`
+				}
+			});
+		}
+
+		let isInRecord = false
+		function toogleRecord() {
+			let logger = document.querySelector("#log")
+			if (!isInRecord) {
+				isInRecord = true
+				wx.startRecord()
+				logger.innerHTML = '开始录音。。。'
+			} else {
+				isInRecord = false
+				wx.stopRecord({
+					success: function (res) {
+						let localId = res.localId;
+						logger.innerHTML = '录音结束，开始播放。。。'
+						wx.playVoice({
+							localId: localId,
+							success: function () {
+								logger.innerHTML = '播放成功！'
+							},
+							fail: function () {
+								logger.innerHTML = '播放失败！'
+							}
+						});
+					},
+					fail: function () {
+						logger.innerHTML = '录音失败!!!'
+					},
+					cancel: function () {
+						logger.innerHTML = '取消录音'
+					}
+				})
+			}
+		}
+
+		function getLocation() {
+			wx.getLocation({
+				type: 'wgs84', // 默认为wgs84的gps坐标，如果要返回直接给openLocation用的火星坐标，可传入'gcj02'
+				success: function (res) {
+					var latitude = res.latitude; // 纬度，浮点数，范围为90 ~ -90
+					var longitude = res.longitude; // 经度，浮点数，范围为180 ~ -180。
+					var speed = res.speed; // 速度，以米/每秒计
+					var accuracy = res.accuracy; // 位置精度
+					document.querySelector("#log").innerHTML = `${longitude},${latitude}`
+				}
+			});
+		}
+
+		function closeWindow() {
+			wx.closeWindow()
+		}
+
+		let menuList = ["menuItem:exposeArticle", "menuItem:setFont", "menuItem:dayMode", "menuItem:nightMode", "menuItem:refresh", "menuItem:profile", "menuItem:addContact", "menuItem:share:appMessage", "menuItem:share:timeline", "menuItem:share:qq", "menuItem:share:weiboApp", "menuItem:favorite", "menuItem:share:facebook", "menuItem:share:QZone", "menuItem:editTag", "menuItem:delete", "menuItem:copyUrl", "menuItem:originPage", "menuItem:readMode", "menuItem:openWithQQBrowser", "menuItem:openWithSafari", "menuItem:share:email", "menuItem:share:brand"]
+		function hideMenu() {
+			wx.hideAllNonBaseMenuItem()
+			wx.hideMenuItems({
+				menuList: menuList // 要隐藏的菜单项，只能隐藏“传播类”和“保护类”按钮，所有menu项见附录3
+			})
+		}
+		function showMenu() {
+			wx.showAllNonBaseMenuItem()
+			wx.showMenuItems({
+				menuList: menuList // 要显示的菜单项，所有menu项见附录3
+			})
+		}
+
+		function scanQRCode() {
+			wx.scanQRCode({
+				needResult: 1, // 默认为0，扫描结果由微信处理，1则直接返回扫描结果，
+				scanType: ["qrCode", "barCode"], // 可以指定扫二维码还是一维码，默认二者都有
+				success: function (res) {
+					var result = res.resultStr; // 当needResult 为 1 时，扫码返回的结果
+					document.querySelector("#log").innerHTML = result
+				}
+			})
+		}
+	</script>
+</body>
+
+</html>
